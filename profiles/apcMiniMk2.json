@@ -1,0 +1,118 @@
+{
+  "deviceName": "APC mini mk2",
+  "deviceType": "apc_mini_mk2",
+  "notice_by_hf": "Universelle JSON-Konfiguration für die herstellerunabhängige Architektur",
+  
+  "comments_header": {
+    "title": "dot2 Akai APC mini mk2 control code",
+    "version_history": [
+      "v 1.5.1 by ArtGateOne -> https://github.com",
+      "v 1.7.0 Single APC-Version: finds, connects and reconnects MIDI-Device, uses external Function-Files (services)",
+      "v 1.7.1 advanced Protection of missing connection to USB/Midi (updated files: dot2apcminimk2-Single.js, services/midiConnection.js)"
+    ],
+    "search_algorithm_rule": "Colornames: Double Words before Single Words, and 2 Letters at the end !!! (White = 3, Warm = 8, Rose = 4, Citron = 73)"
+  },
+
+  "colorNameCodes": [
+    { "name": "PEff", "code": 76, "comment": "Position Effect (Phaser): 76 = darkGreen" },
+    { "name": "PosEff", "code": 76 },
+    { "name": "PFX", "code": 76 },
+    { "name": "PosFX", "code": 76 },
+    { "name": "Eff", "code": 58, "comment": "Color or Dimmer Effect (Phaser): 58 = darkPink" },
+    { "name": "FX", "code": 58 },
+    
+    { "name": "Center", "code": 74, "comment": "Center Position: 74 = YellowGreen" },
+    { "name": "XPos", "code": 75, "comment": "Extra Position (mostly with Super Priority): 75 = intens Green" },
+    { "name": "Pos", "code": 73, "comment": "Normal Position: 73 = lightGreen" },
+
+    { "name": "Black", "code": 119, "comment": "Blackout: 119 = lightCyanWhite" },
+    { "name": "Warm", "code": 8, "comment": "Warm White: 8 = WarmWhite" },
+    { "name": "White", "code": 3, "comment": "3 = White" },
+    { "name": "Deep Red", "code": 121, "comment": "121 = darkRed" },
+    { "name": "Light Red", "code": 56, "comment": "56 = lightRed" },
+    { "name": "Red", "code": 5 },
+    { "name": "Rot", "code": 5, "comment": "Red (German)" },
+    { "name": "Light Orange", "code": 108 },
+    { "name": "Orange", "code": 9, "comment": "Orange (German same Word)" },
+    { "name": "Light Yellow", "code": 12 },
+    { "name": "Yellow", "code": 13 },
+    { "name": "Gelb", "code": 13, "comment": "Yellow (German)" },
+    { "name": "Fern Green", "code": 17 },
+    { "name": "Sea Green", "code": 25 },
+    { "name": "Light Green", "code": 110 },
+    { "name": "Green", "code": 21 },
+    { "name": "Grün", "code": 21, "comment": "Green (German)" },
+    { "name": "Light Cyan", "code": 32 },
+    { "name": "Cyan", "code": 33 },
+    { "name": "Lavender", "code": 41 },
+    { "name": "Light Bl", "code": 36 },
+    { "name": "Blue", "code": 45 },
+    { "name": "Blau", "code": 45, "comment": "Blue (German)" },
+    { "name": "Light Vi", "code": 48 },
+    { "name": "Violet", "code": 49 },
+    { "name": "Light Mag", "code": 52 },
+    { "name": "Magenta", "code": 53 },
+    { "name": "Pink", "code": 57 },
+    { "name": "CTO", "code": 108, "comment": "CTO Gel = warm" },
+    { "name": "CTB", "code": 93, "comment": "CTB Gel = cold" },
+    { "name": "Gray", "code": 1, "comment": "Gray" },
+    
+    { "comment_section": "Shortcuts - short Names must be last in this Array!!! dot2-labels must be longer than 3 signs to be found here, so it is necessary to have a leading 'Space' before or after the following shortcuts. Example: 'Singer or' = Singer orange Color" },
+
+    { "name": "sw", "code": 0, "comment": "DIN 47002 Shortcuts: Schwarz / Black" },
+    { "name": "br", "code": 126, "comment": "Braun / Brown" },
+    { "name": "ws", "code": 3, "comment": "Weiß / White" },
+    { "name": "rt", "code": 5, "comment": "Rot / Red" },
+    { "name": "or", "code": 9 },
+    { "name": "ge", "code": 13, "comment": "Gelb / Yellow" },
+    { "name": "gn", "code": 21, "comment": "Grün / Green" },
+    { "name": "cy", "code": 33 },
+    { "name": "tk", "code": 33, "comment": "Türkis / Turquoise (same as Cyan)" },
+    { "name": "bl", "code": 45, "comment": "Blau / Blue" },
+    { "name": "vi", "code": 49, "comment": "Violett / violet" },
+    { "name": "gr", "code": 1, "comment": "Grau / Gray" },
+    { "name": "ma", "code": 53 },
+    { "name": "rs", "code": 57, "comment": "Rosa / Pink" },
+    { "name": "wm", "code": 8, "comment": "Warm (not DIN)" },
+
+    { "name": "BK", "code": 0, "comment": "IEC 60757 Shortcuts: Black" },
+    { "name": "BN", "code": 126, "comment": "Brown" },
+    { "name": "WH", "code": 3, "comment": "White" },
+    { "name": "RD", "code": 5, "comment": "Rot / Red" },
+    { "name": "OG", "code": 9, "comment": "Orange" },
+    { "name": "YE", "code": 13, "comment": "Gelb / Yellow" },
+    { "name": "GN", "code": 21, "comment": "Grün / Green" },
+    { "name": "TQ", "code": 33, "comment": "Türkis / Turquoise (sams as Cyan)" },
+    { "name": "BU", "code": 45, "comment": "Blau / Blue" },
+    { "name": "VT", "code": 49, "comment": "Violett / violet" },
+    { "name": "GY", "code": 1, "comment": "Gray" },
+    { "name": "PK", "code": 57, "comment": "Pink" },
+
+    { "name": "Solid", "code": 78, "comment": "Solid WLEDs: 78 = Light GreenBlue" },
+    { "name": "WLED", "code": 42, "comment": "WLED: 42 = dark GreenBlue" },
+    { "name": "Master Speed 1", "code": 58, "comment": "Masterspeed 1 -> Color Effects : redViolet" },
+    { "name": "Master Speed 2", "code": 76, "comment": "Masterspeed 2 -> Position Effects : darkGreen" },
+    { "name": "Alle", "code": 36, "comment": "Select All (don't use 'all' because inside the Word 'Ball' or 'football')" },
+
+    { "name": "W", "code": 42, "comment": "Ultra-Shortcuts: recommend to use as first sign in dot2 label !!! Must be followed by an Space. Example: 'W intensity'. Bad Example: 'W red' -> will be red, because of Search-Algorithm finds long Names first" },
+    { "name": " ", "code": 108, "comment": "Array End: Space label use color of 'upperFaderbutton Off' (ufb2 = 108)" }
+  ],
+
+  "notice_hardware_layout": "Spezifisches Tasten-Layout des APC mini mk2",
+  "layouts": {
+    "notes": {
+      "fader_buttons": { "min": 0, "max": 15, "comment": "Buttons lower 2 lines" },
+      "matrix_buttons": { "min": 16, "max": 63, "comment": "Buttons upper 6 lines" },
+      "page_select": { "min": 112, "max": 116, "offset": 112, "comment": "Scene Buttons 'Clip Stop' bis 'Select'" },
+      "wing_select": { "note": 117, "comment": "Scene Button 'Drum'" },
+      "fader_mode_hi": { "note": 118, "comment": "Scene Button 'Note' - fader buttons select HI" },
+      "fader_mode_lo": { "note": 119, "comment": "Scene Button 'Stop all Clips' - fader buttons select LO" },
+      "shift_button": { "note": 122, "comment": "Shift Button" },
+      "track_buttons": { "min": 100, "max": 107, "offset": 52, "comment": "Track Buttons 100-107" }
+    },
+    "cc": {
+      "faders": { "min": 48, "max": 55, "offset": 48, "comment": "Faders 1-8" },
+      "master_fader": { "cc": 56, "comment": "Grand Master Fader" }
+    }
+  }
+}

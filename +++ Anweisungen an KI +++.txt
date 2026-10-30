@@ -1,0 +1,9 @@
+
+
+den Code absolut exakt und unter Beibehaltung all der Kommentare, Trennlinien und altem Wissen ändern
+
+dot2-MIDI-Bridge Entwicklung von Version 1.8.0
+Universal JSON Hardware-Abstraction:
+- Umstellung des Profils von JS-Code auf herstellerunabhängige JSON-Datendefinition (profiles/apcMiniMk2.json).
+- Integration des universellen services/jsonProfileParser.js.
+- Beibehaltung der Single-Funktion im stabilen Testmodus.

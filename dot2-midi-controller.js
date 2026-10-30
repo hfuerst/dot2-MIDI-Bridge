@@ -1,6 +1,6 @@
 // ************************************************
 // ***   dot2 Akai APC mini mk2 control code    ***
-// ***   v 1.7.2 (2026-10-30) by hfuerst (HF)   ***
+// ***   v 1.8.0 (2026-10-30) by hfuerst (HF)   ***
 // ************************************************
 // fork from
 // dot2 Akai APC mini mk2 control code v 1.5.1 by ArtGateOne
@@ -18,6 +18,11 @@
 //            erfolgreich nach profiles/apcMiniMk2.js ausgegliedert.
 //          - Hauptdatei über Proxy-Array abgewickelt (0% Logik-Änderung).
 //          - System im Single-Modus auf Funktion geprüft und eingefroren.
+// 1.8.0 Universal JSON Hardware-Abstraction:
+//          - Umstellung des Profils von JS-Code auf herstellerunabhängige
+//            JSON-Datendefinition (profiles/apcMiniMk2.json).
+//          - Integration des universellen services/jsonProfileParser.js.
+//          - Beibehaltung der Single-Funktion im stabilen Testmodus.
 
 var easymidi = require('easymidi');
 var W3CWebSocket = require('websocket')
@@ -27,13 +32,18 @@ var W3CWebSocket = require('websocket')
 const { initMidi } = require('./services/midiConnection');
 const { runFullMidiInitialization } = require('./services/midiInitialization');
 
-const apcProfile = require('./profiles/apcMiniMk2');
+//const apcProfile = require('./profiles/apcMiniMk2');
+// NEU / Universeller JSON-Parser
+const { loadProfile, matchRuleExpl } = require('./services/jsonProfileParser');
+const apcMiniMK2Profile = loadProfile('apcMiniMk2.json');
+
+
 
 // Proxy-Verweis: Leitet Zugriffe im Code direkt an das Array im Profil weiter, 
 // ohne dass die Such- und Ersetzungszeilen im Skript geändert werden müssen.
-//var colorNameCodes = new Proxy({}, { get: (target, prop) => apcProfile.colorNameCodes[prop][1] });
+//var colorNameCodes = new Proxy({}, { get: (target, prop) => apcMiniMK2Profile.colorNameCodes[prop][1] });
 
-var colorNameCodes = apcProfile.colorNameCodes;
+var colorNameCodes = apcMiniMK2Profile.colorNameCodes;
 
 ////////////////////////////////////////////////////////////////////////////////
 //config 
@@ -224,6 +234,7 @@ console.log("");
 // =====================================================================================
 process.on('uncaughtException', (err) => {
     console.error('\x1b[31m🚨 [Hardware-Schutz] Hardware-Fehler abgefangen:\x1b[0m', err.message);
+    console.error(err.stack); // Detalliertes Log mit Zeilennummern aktivieren
     
     // Prüft, ob der Fehler aus dem MIDI-Subsystem oder der Treiber-Bibliothek (rtmidi) kommt
     if (err.message.includes('MIDI') || err.message.includes('input') || err.message.includes('output') || err.message.includes('rtmidi')) {
@@ -264,8 +275,9 @@ midiInput1.on('connect', () => {
     };
 
     // Führt die Initialisierung aus und triggert das Intervall erst nach Abschluss der Queue
-    runFullMidiInitialization(midiOutput1, currentConfig, apcProfile, () => {
+    runFullMidiInitialization(midiOutput1, currentConfig, apcMiniMK2Profile, () => {
         if (typeof interval === 'function') {
+
             console.log("📡 [APC] Queue leer. Fordere Live-Daten von dot2 an...");
             interval(); 
         }
@@ -779,11 +791,12 @@ client.onmessage = function (e) {
                     for (k = 0; k < 6; k++) {
                         for (i = 0; i < 8; i++) {
                             //var m = palete[i];
-                            var m = apcProfile.findColorIndex(obj.itemGroups[k].items[i][0].tt.t);
+                            var m = apcMiniMK2Profile.findColorIndex(obj.itemGroups[k].items[i][0].tt.t);
                             if (m != -1) {       // Colorname found
                                 //m = colorcodes[m];
-                                m = apcProfile.colorNameCodes[m][1];
+                                m = apcMiniMK2Profile.colorNameCodes[m][1];
                             }
+
 
                             if (obj.itemGroups[k].items[i][0].isRun == 1) {
                                 //Executor is ON
@@ -882,7 +895,7 @@ client.onmessage = function (e) {
 
                     for (i = 0; i < 6; i++) {//faders dots
                         m = 0;
-                        if (obj.itemGroups[0].items[i][0].isRun == 1) {
+                        if (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].isRun == 1) {
                             m = 127;
                         } 
                         if (ledmatrix[j] != m) {
@@ -891,9 +904,10 @@ client.onmessage = function (e) {
                         }
 
                         if (faderbuttons == "LO") {//display faders lower buttons 
-                            if (obj.itemGroups[0].items[i][0].isRun == 1) {
+                            if (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].isRun == 1) {
                                 m = f3;
-                            } else if ((obj.itemGroups[0].items[i][0].i.c) == "#000000") {
+                            } else if (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].i && obj.itemGroups[0].items[i][0].i.c == "#000000") {
+
                                 m = f1;
                             } else { m = f2; }
 
@@ -950,9 +964,10 @@ client.onmessage = function (e) {
                         // -----------------------------------------
                         // Fader dots  (Track Buttons)
                         m = 0;
-                        if (obj.itemGroups[0].items[i][0].isRun == 1) {
+                        if (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].isRun == 1) {
+
                             m = 127;
-                        } /*else if ((obj.itemGroups[0].items[i][0].i.c) == "#000000") {
+                        } /*else if (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].i && obj.itemGroups[0].items[i][0].i.c == "#000000") {
                         m = 0
                         } else { m = 1; }*/
                         if (ledmatrix[j] != m) {
@@ -963,7 +978,7 @@ client.onmessage = function (e) {
                         // -----------------------------------------
                         //display faders lower buttons
                         if (faderbuttons == "LO") {  
-                            if (obj.itemGroups[0].items[i][0].isRun == 1) {
+                            if (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].isRun == 1) {
                                 // Executor is ON
                                 m = f3;
                                 channel = brightness;
@@ -973,13 +988,15 @@ client.onmessage = function (e) {
                                 }
                                 if (autocolor == 1) {
                                     // console.log (obj.itemGroups[0].items[i][0].tt.t);
-                                    var ind = apcProfile.findColorIndex(obj.itemGroups[0].items[i][0].tt.t);
+                                    var dot2Label = (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].tt) ? obj.itemGroups[0].items[i][0].tt.t : null;
+                                    var ind = apcMiniMK2Profile.findColorIndex(dot2Label);
                                     if (ind != -1) {       // Colorname found
                                         //m = colorcodes[m];
-                                        m = apcProfile.colorNameCodes[ind][1];
+                                        m = apcMiniMK2Profile.colorNameCodes[ind][1];
                                     }
-                                }  
-                            } else if ((obj.itemGroups[0].items[i][0].i.c) == "#000000") {
+                                } 
+                            } else if (obj.itemGroups[0].items[i] && obj.itemGroups[0].items[i][0] && obj.itemGroups[0].items[i][0].i && obj.itemGroups[0].items[i][0].i.c == "#000000") {
+
                                 // Executor is not used
                                 m = f1;
                             } else { 
@@ -987,13 +1004,14 @@ client.onmessage = function (e) {
                                 m = f2; 
                                 channel = brightness; 
                                 if (autocolor == 1) {
-                                    var ind = apcProfile.findColorIndex(obj.itemGroups[0].items[i][0].tt.t);  // ToDo HF
+                                    var ind = apcMiniMK2Profile.findColorIndex(obj.itemGroups[0].items[i][0].tt.t);  // ToDo HF
                                     if (ind != -1) {       // Colorname found
                                         //m = colorcodes[m];
-                                        m = apcProfile.colorNameCodes[ind][1];
+                                        m = apcMiniMK2Profile.colorNameCodes[ind][1];
                                     }
                                 }  
                             }
+
 
                             // lower row of lower fader buttons (4)
                             // can be active in dot 2
@@ -1020,7 +1038,7 @@ client.onmessage = function (e) {
                             if (autocolor == 1) {
                                 var Search = 'Master Speed'.toLowerCase();
                                 var buttonLabel = obj.itemGroups[0].items[i][0].tt.t.toLowerCase();
-                                if (apcProfile.matchRuleExpl(buttonLabel, Search + "*")){
+                                if (matchRuleExpl(buttonLabel, Search + "*")){
                                     m = MasterSpeedColor;
                                     channel = 7; // blink always Faster
                                     //console.log('Label: '+buttonLabel+', Search: '+Search+', m:'+m);
@@ -1051,7 +1069,9 @@ client.onmessage = function (e) {
                         for (i = 0; i < 8; i++) { //upper upper fader exec (1)
                             channel = brightness;
                             changed = 0;
-                            if (obj.itemGroups[1].items[i][0].isRun == 1) {
+                            var item = (obj.itemGroups[1] && obj.itemGroups[1].items && obj.itemGroups[1].items[i]) ? obj.itemGroups[1].items[i][0] : null;
+                            
+                            if (item && item.isRun == 1) {
                                 // Executor is ON
                                 m = ufb3;
                                 channel = brightness;
@@ -1059,29 +1079,25 @@ client.onmessage = function (e) {
                                      m = ufb2;
                                      channel = 8; // blink
                                 }
-                                if (autocolor == 1) {
-                                    // console.log (obj.itemGroups[0].items[i][0].tt.t);
-                                    var ind = apcProfile.findColorIndex(obj.itemGroups[1].items[i][0].tt.t);  // ToDo HF
-                                    if (ind != -1) {       // Colorname found
-                                        //m = colorcodes[m];
-                                        m = apcProfile.colorNameCodes[ind][1];
+                                if (autocolor == 1 && item.tt) {
+                                    var ind = apcMiniMK2Profile.findColorIndex(item.tt.t);  // ToDo HF
+                                    if (ind != -1) {
+                                        m = apcMiniMK2Profile.colorNameCodes[ind][1];
                                     }
                                 } 
-                            } else if ((obj.itemGroups[1].items[i][0].i.c) == "#000000") {
+                            } else if (item && item.i && item.i.c == "#000000") {
                                 // Executor is not used
                                 m = ufb1;
                             } else { 
                                 // Executor is OFF
                                 m = ufb2;
                                 channel = brightness;
-                                if (autocolor == 1) {
-                                    var ind = apcProfile.findColorIndex(obj.itemGroups[1].items[i][0].tt.t);  // ToDo HF
-                                    if (ind != -1) {       // Colorname found
-                                        //m = colorcodes[m];
-                                        m = apcProfile.colorNameCodes[ind][1];
+                                if (autocolor == 1 && item && item.tt) {
+                                    var ind = apcMiniMK2Profile.findColorIndex(item.tt.t);  // ToDo HF
+                                    if (ind != -1) {
+                                        m = apcMiniMK2Profile.colorNameCodes[ind][1];
                                     }
-                                }  
-
+                                }
                             }
 
                             if (ledmatrix[j] != m || ledvelocity[j] != channel) {
@@ -1102,33 +1118,32 @@ client.onmessage = function (e) {
                         }
                         for (i = 0; i < 8; i++) {   // lower line of upper fader exec (2)
                             channel = brightness;
-                            if (obj.itemGroups[2].items[i][0].isRun == 1) {
+                            var item = (obj.itemGroups[2] && obj.itemGroups[2].items && obj.itemGroups[2].items[i]) ? obj.itemGroups[2].items[i][0] : null;
+                            
+                            if (item && item.isRun == 1) {
                                 // Executor is ON
                                 m = ufb3;
                                 if (activeblink == 1){
                                     m = ufb2;
                                     channel = 8;
                                 }
-                                if (autocolor == 1) {
-                                    // console.log (obj.itemGroups[0].items[i][0].tt.t);
-                                    var ind = apcProfile.findColorIndex(obj.itemGroups[2].items[i][0].tt.t);
-                                    if (ind != -1) {       // Colorname found
-                                        //m = colorcodes[m];
-                                        m = apcProfile.colorNameCodes[ind][1];
+                                if (autocolor == 1 && item.tt) {
+                                    var ind = apcMiniMK2Profile.findColorIndex(item.tt.t);
+                                    if (ind != -1) {
+                                        m = apcMiniMK2Profile.colorNameCodes[ind][1];
                                     }
                                 } 
-                            } else if ((obj.itemGroups[2].items[i][0].i.c) == "#000000") {
+                            } else if (item && item.i && item.i.c == "#000000") {
                                 // Executor is not used
                                 m = ufb1;
                             } else { 
                                 // Executor is OFF
                                 m = ufb2; 
                                 channel = brightness;
-                                if (autocolor == 1) {
-                                    var ind = apcProfile.findColorIndex(obj.itemGroups[2].items[i][0].tt.t);  // ToDo HF
-                                    if (ind != -1) {       // Colorname found
-                                        //m = colorcodes[m];
-                                        m = apcProfile.colorNameCodes[ind][1];
+                                if (autocolor == 1 && item && item.tt) {
+                                    var ind = apcMiniMK2Profile.findColorIndex(item.tt.t);  // ToDo HF
+                                    if (ind != -1) {
+                                        m = apcMiniMK2Profile.colorNameCodes[ind][1];
                                     }
                                     channel = brightness;
                                 } 

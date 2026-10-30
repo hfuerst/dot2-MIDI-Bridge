@@ -1,5 +1,5 @@
 ==================================================
-   PROJECT CONTEXT - GENERATED: 2026-10-29T17:18:11.772Z
+   PROJECT CONTEXT - GENERATED: 2026-10-30T11:17:01.448Z
 ==================================================
 
 
@@ -7,11 +7,11 @@
 // ==================================================
 // ************************************************
 // ***   dot2 Akai APC mini mk2 control code    ***
-// ***   v 1.7.1 (2026-10-29) by hfuerst (HF)   ***
+// ***   v 1.8.0 (2026-10-30) by hfuerst (HF)   ***
 // ************************************************
-//fork from
-//dot2 Akai APC mini mk2 control code v 1.5.1 by ArtGateOne
-// -> https://github.com/ArtGateOne/dot2apcmini
+// fork from
+// dot2 Akai APC mini mk2 control code v 1.5.1 by ArtGateOne
+// -> https://github.com
 //
 // 1.7.0 Single APC-Version: 
 //          finds, connects and reconnects MIDI-Device 
@@ -20,7 +20,16 @@
 //          updated files: 
 //              dot2apcminimk2-Single.js 
 //              services/midiConnection.js
-
+// 1.7.2 Profile Outsourcing & Verification:
+//          - Hardwarespezifische Farbtabellen und Suchalgorithmen
+//            erfolgreich nach profiles/apcMiniMk2.js ausgegliedert.
+//          - Hauptdatei über Proxy-Array abgewickelt (0% Logik-Änderung).
+//          - System im Single-Modus auf Funktion geprüft und eingefroren.
+// 1.8.0 Universal JSON Hardware-Abstraction:
+//          - Umstellung des Profils von JS-Code auf herstellerunabhängige
+//            JSON-Datendefinition (profiles/apcMiniMk2.json).
+//          - Integration des universellen services/jsonProfileParser.js.
+//          - Beibehaltung der Single-Funktion im stabilen Testmodus.
 
 var easymidi = require('easymidi');
 var W3CWebSocket = require('websocket')
@@ -267,7 +276,7 @@ midiInput1.on('connect', () => {
     };
 
     // Führt die Initialisierung aus und triggert das Intervall erst nach Abschluss der Queue
-    runFullMidiInitialization(midiOutput1, currentConfig, () => {
+    runFullMidiInitialization(midiOutput1, currentConfig, apcProfile, () => {
         if (typeof interval === 'function') {
             console.log("📡 [APC] Queue leer. Fordere Live-Daten von dot2 an...");
             interval(); 
@@ -1243,115 +1252,113 @@ function setButtons(wing) {
 // ==================================================
 
 
-/* FILE: services\APCguiRenderer.js */
+/* FILE: services\jsonProfileParser.js */
 // ==================================================
-//const termKit = require('../vendor/node_modules/terminal-kit');
-//const termKit = require('terminal-kit');
-const termKit = require('./vendor/node_modules/terminal-kit');
+const fs = require('fs');
+const path = require('path');
 
-const term = termKit.terminal;
+function loadProfile(filename = 'apcMiniMk2.json') {
+    const filePath = path.join(__dirname, '../profiles', filename);
+    const rawData = fs.readFileSync(filePath, 'utf8');
+    const profile = JSON.parse(rawData);
 
-let screenBuf = new termKit.ScreenBuffer({ dst: term, noFill: false });
-
-const rightLabels = ['CLIP', 'SOLO', 'MUTE', 'REC ', 'SELC', 'DRUM', 'NOTE', 'STOP'];
-
-function drawAPCminiLayout(state) {
-    const width = term.width || 80;
-    const height = term.height || 25;
-
-    if (screenBuf.dst.width !== width || screenBuf.dst.height !== height) {
-        screenBuf = new termKit.ScreenBuffer({ dst: term, noFill: false });
-    }
-
-    screenBuf.fill({ attr: { bgColor: 'blue', color: 'white' } });
-
-    function putStr(x, y, text, attr = { bgColor: 'blue', color: 'white' }) {
-        screenBuf.put({ x, y, attr }, text);
-    }
-
-    // Titel-Box
-    putStr(2, 1, "┌" + "─".repeat(width - 6) + "┐");
-    putStr(2, 2, `│  dBASE IV v1.7  -  AKAI APCmini MK2 [Wing: ${state.wing} Page: ${state.pageIndex + 1}]`.padEnd(width - 5) + "│", { bgColor: 'blue', color: 'white', bold: true });
-    putStr(2, 3, "└" + "─".repeat(width - 6) + "┘");
-
-    // Statuszeile & Verbindungstatus
-    let statusColor = state.midiConnected ? 'yellow' : 'red';
-    putStr(4, 5, `Letzte Aktion: ${state.lastAction}`.padEnd(width - 8), { bgColor: 'blue', color: statusColor });
-
-    // --- HAUPT-GRID (8x8) & RECHTE TASTEN ---
-    let startY = 7;
-    for (let row = 0; row < 8; row++) {
-        let currentX = 4;
+    return {
+        deviceName: profile.deviceName,
+        deviceType: profile.deviceType,
+        colorNameCodes: profile.colorNameCodes.map(item => [item.name, item.code]),
+        layouts: profile.layouts,
         
-        for (let col = 0; col < 8; col++) {
-            let isGridActive = state.mainGrid[row][col] === 1;
-            let btnAttr = isGridActive ? { bgColor: 'green', color: 'black' } : { bgColor: 'brightBlack', color: 'white' };
-            screenBuf.put({ x: currentX, y: startY + row, attr: btnAttr }, "[■■]");
-            currentX += 5;
-        }
-
-        putStr(currentX - 1, startY + row, "│ ");
-        currentX += 1;
-
-        let isRightActive = state.rightButtons[row] === 1;
-        let rightAttr = isRightActive ? { bgColor: 'yellow', color: 'black' } : { bgColor: 'brightBlack', color: 'white' };
-        screenBuf.put({ x: currentX, y: startY + row, attr: rightAttr }, `(${rightLabels[row]})`);
-    }
-
-    putStr(4, startY + 8, "─".repeat(39) + "┼" + "────────");
-
-    // --- UNTERE TASTEN ---
-    let btnX = 4;
-    for (let col = 0; col < 8; col++) {
-        let isBottomActive = state.bottomButtons[col] === 1;
-        let bAttr = isBottomActive ? { bgColor: 'yellow', color: 'black' } : { bgColor: 'brightBlack', color: 'white' };
-        screenBuf.put({ x: btnX, y: startY + 9, attr: bAttr }, "[O]");
-        btnX += 5;
-    }
-    
-    putStr(43, startY + 9, "│ ");
-
-    let masterBtnAttr = state.masterBottomButton === 1 ? { bgColor: 'red', color: 'white', bold: true } : { bgColor: 'brightBlack', color: 'white' };
-    screenBuf.put({ x: 46, y: startY + 9, attr: masterBtnAttr }, "[O]");
-    putStr(50, startY + 9, "(BLACKOUT)", { bgColor: 'blue', color: state.masterBottomButton === 1 ? 'red' : 'white' });
-
-    // --- VERTIKALE FADER ---
-    let faderTopY = startY + 11;
-    let faderHeight = 6; 
-
-    for (let f = 0; f < 9; f++) {
-        let faderX = (f === 8) ? 46 : 4 + (f * 5);
-        let valPercent = state.faderValues[f];
-        let numActiveSegments = Math.round((valPercent / 100) * (faderHeight - 1));
-
-        for (let h = 0; h < faderHeight; h++) {
-            let rowY = faderTopY + (faderHeight - 1 - h);
-            if (h === numActiveSegments) {
-                screenBuf.put({ x: faderX, y: rowY, attr: { bgColor: 'yellow', color: 'black', bold: true } }, "███");
-            } else {
-                screenBuf.put({ x: faderX, y: rowY, attr: { bgColor: 'blue', color: 'brightBlack' } }, " │ ");
+        findColorIndex(colorName) {
+            var buttonLabel = colorName.toLowerCase();
+            var index = -1; 
+            for (var n = 0; n < this.colorNameCodes.length; n++) {  
+                var Search = this.colorNameCodes[n][0].toLowerCase();
+                if (Search.length > 2) {
+                    if (matchRuleExpl(buttonLabel, "*" + Search + "*")) {
+                        index = n;
+                        break;
+                    }
+                } else {
+                    if (buttonLabel.length > 3) {
+                        if (matchRuleExpl(buttonLabel, "*" + Search + "*")) {
+                            if (matchRuleExpl(buttonLabel, "* " + Search) || matchRuleExpl(buttonLabel, Search + " *")) {
+                                index = n;
+                                break;
+                            }
+                        }
+                    } else {
+                        if (matchRuleExpl(buttonLabel, Search)) {
+                            index = n;
+                            break;
+                        }
+                    }
+                }
             }
+            return index;
+        },
+
+        buildResetQueue(config) {
+            const { ledmatrix, brightness, pageselect, wingselect, wing, darkmode, pageIndex } = config;
+            const midiQueue = [];
+            const notes = profile.layouts.notes;
+
+            for (var i = 0; i < 120; i++) {
+                midiQueue.push({ note: i, velocity: ledmatrix[i], channel: brightness });
+            }
+
+            if (pageselect > 0) {
+                var currentPageIndex = pageIndex !== undefined ? pageIndex : 0;
+                var currentPageNote = notes.page_select.offset + currentPageIndex;
+
+                for (var note = notes.page_select.min; note <= notes.page_select.max; note++) {
+                    midiQueue.push({ 
+                        note: note, 
+                        velocity: (note === currentPageNote) ? 127 : 0, 
+                        channel: 0 
+                    });
+                }
+            }
+
+            if (wingselect > 0 && wing == 2) {
+                midiQueue.push({ note: notes.wing_select.note, velocity: 127, channel: 0 });
+            } else {
+                midiQueue.push({ note: notes.wing_select.note, velocity: 0, channel: 0 });
+            }
+
+            midiQueue.push({ note: notes.fader_mode_hi.note, velocity: 0, channel: 0 });
+            midiQueue.push({ note: notes.fader_mode_lo.note, velocity: 127, channel: 0 });
+
+            if (wing == 0) {
+                if (darkmode == 1) {
+                    midiQueue.push({ note: 6, velocity: 0, channel: brightness });
+                    midiQueue.push({ note: 7, velocity: 1, channel: brightness });
+                    midiQueue.push({ note: 14, velocity: 0, channel: brightness });
+                    midiQueue.push({ note: 15, velocity: 1, channel: brightness });
+                    midiQueue.push({ note: 107, velocity: 127, channel: 0 });
+                } else {
+                    midiQueue.push({ note: 6, velocity: 0, channel: brightness });
+                    midiQueue.push({ note: 7, velocity: 21, channel: brightness });
+                    midiQueue.push({ note: 14, velocity: 0, channel: brightness });
+                    midiQueue.push({ note: 15, velocity: 45, channel: brightness });
+                    midiQueue.push({ note: 107, velocity: 127, channel: 0 });
+                }
+            }
+
+            return midiQueue;
         }
-
-        let pctText = `${valPercent}%`.padStart(4);
-        putStr(faderX - 1, faderTopY + faderHeight, pctText, { bgColor: 'blue', color: 'cyan' });
-        let label = (f === 8) ? " M " : ` F${f + 1}`;
-        putStr(faderX, faderTopY + faderHeight + 1, label, { bgColor: 'blue', color: 'white' });
-    }
-
-    // dBase-Fußzeile
-    for (let x = 0; x < width; x++) {
-        screenBuf.put({ x, y: height - 1, attr: { bgColor: 'brightWhite', color: 'black' } }, " ");
-    }
-    screenBuf.put({ x: 1, y: height - 1, attr: { bgColor: 'brightWhite', color: 'black' } }, " F1-Hilfe │ F5-Sync │ F10-Beenden ");
-
-    term.hideCursor(true);
-    screenBuf.draw({ delta: true }); 
+    };
 }
 
-module.exports = { drawAPCminiLayout };
+function matchRuleExpl(str, rule) {
+    var escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+    rule = rule.split("*").map(escapeRegex).join(".*");
+    rule = "^" + rule + "$";
+    var regex = new RegExp(rule);
+    return regex.test(str);
+}
 
-// END OF FILE: services\APCguiRenderer.js
+module.exports = { loadProfile };
+// END OF FILE: services\jsonProfileParser.js
 // ==================================================
 
 
@@ -1507,60 +1514,25 @@ module.exports = {
 
 /* FILE: services\midiInitialization.js */
 // ==================================================
-const { sendMidiBatch } = require('./midiSendQueue'); // <-- NEU: Importiert den Queue-Service
+/* FILE: services/midiInitialization.js */
+const { sendMidiBatch } = require('./midiSendQueue'); // Importiert den Queue-Service
 
 /**
- * Baut die Reset-Matrix für das APC mini mk2 zusammen und übergibt sie an die SendQueue.
+ * Universeller Hardware-Reset.
+ * Holt die gerätespezifischen Befehle aus dem Profil und übergibt sie an die SendQueue.
+ * 
+ * @param {Object} midiOutput - Das aktive MIDI-Output-Objekt
+ * @param {Object} config - Die aktuelle Konfiguration (ledmatrix, brightness etc.)
+ * @param {Object} profile - Das geladene Hardware-Profil des Controllers (z.B. apcProfile)
+ * @param {Function} onComplete - Callback-Funktion nach Abschluss
  */
-function runFullMidiInitialization(midiOutput, config, onComplete) {
-    const { ledmatrix, brightness, pageselect, wingselect, wing, darkmode, pageIndex } = config;
-    const midiQueue = [];
-
-    // 1. Grund-LED-Matrix (0-119) vorbereiten
-    for (let i = 0; i < 120; i++) {
-        midiQueue.push({ note: i, velocity: ledmatrix[i], channel: brightness });
-    }
-
-    // 2. Page-Select Tasten (112-116) direkt anhand der aktuellen Page berechnen
-    if (pageselect > 0) {
-        const currentPageIndex = pageIndex !== undefined ? pageIndex : 0;
-        const currentPageNote = 112 + currentPageIndex;
-
-        for (let note = 112; note <= 116; note++) {
-            midiQueue.push({ 
-                note: note, 
-                velocity: (note === currentPageNote) ? 127 : 0, 
-                channel: 0 
-            });
-        }
-    }
-
-    // 3. Wing-Select LEDs vorbereiten
-    if (wingselect > 0 && wing == 2) {
-        midiQueue.push({ note: 117, velocity: 127, channel: 0 });
-    } else {
-        midiQueue.push({ note: 117, velocity: 0, channel: 0 });
-    }
-
-    // 4. Fader-Buttons (HI / LO) vorbereiten
-    midiQueue.push({ note: 118, velocity: 0, channel: 0 });
-    midiQueue.push({ note: 119, velocity: 127, channel: 0 });
-
-    // 5. Go+ / Go- / Pause Buttons einfärben (nur bei Wing 0)
-    if (wing == 0) {
-        const goVelocity = (darkmode === 1) ? 1 : 21;
-        const pauseVelocity = (darkmode === 1) ? 1 : 45;
-        
-        midiQueue.push({ note: 6, velocity: 0, channel: brightness });
-        midiQueue.push({ note: 7, velocity: goVelocity, channel: brightness });
-        midiQueue.push({ note: 14, velocity: 0, channel: brightness });
-        midiQueue.push({ note: 15, velocity: pauseVelocity, channel: brightness });
-        midiQueue.push({ note: 107, velocity: 127, channel: 0 });
-    }
+function runFullMidiInitialization(midiOutput, config, profile, onComplete) {
+    // Holt die hardwarespezifischen MIDI-Befehle universell aus dem übergebenen Profil
+    const midiQueue = profile.buildResetQueue(config);
 
     // Übergibt die gesammelten Befehle an die ausgelagerte Queue
     sendMidiBatch(midiOutput, midiQueue, () => {
-        console.log("✅ [MIDIini] Hardware-Reset über Send-Queue abgeschlossen!");
+        console.log("✅ [MIDIini] Universeller Hardware-Reset über Send-Queue abgeschlossen!");
         if (typeof onComplete === 'function') {
             onComplete();
         }
@@ -1862,10 +1834,73 @@ function findColorIndex(colorName) {
 
 //=================================================================
 
+// Baut die hardwarespezifischen MIDI-Befehle für das APC mini mk2 zusammen
+function buildResetQueue(config) {
+    const { ledmatrix, brightness, pageselect, wingselect, wing, darkmode, pageIndex } = config;
+    const midiQueue = [];
+
+    // 1. Grund-LED-Matrix (0-119) vorbereiten
+    for (var i = 0; i < 120; i++) {
+        midiQueue.push({ note: i, velocity: ledmatrix[i], channel: brightness });
+    }
+
+    // 2. Page-Select Tasten (112-116) direkt anhand der aktuellen Page berechnen
+    // Scene Buttons 'Clip Stop', 'Solo', 'Mute', 'Rec Arm', 'Select'
+    if (pageselect > 0) {
+        var currentPageIndex = pageIndex !== undefined ? pageIndex : 0;
+        var currentPageNote = 112 + currentPageIndex;
+
+        for (var note = 112; note <= 116; note++) {
+            midiQueue.push({ 
+                note: note, 
+                velocity: (note === currentPageNote) ? 127 : 0, 
+                channel: 0 
+            });
+        }
+    }
+
+    // 3. Wing-Select LEDs vorbereiten
+    // Scene Button "Drum"
+    // by HF
+    if (wingselect > 0 && wing == 2) {
+        midiQueue.push({ note: 117, velocity: 127, channel: 0 });
+    } else {
+        midiQueue.push({ note: 117, velocity: 0, channel: 0 });
+    }
+
+    // 4. Fader-Buttons (HI / LO) vorbereiten
+    // Scene Buttons 'Note', 'Stop all Clips'
+    midiQueue.push({ note: 118, velocity: 0, channel: 0 });//fader buttons select HI
+    midiQueue.push({ note: 119, velocity: 127, channel: 0 });//fader buttons select LO
+
+    // 5. color Go+ Go- Pause buttons (nur bei Wing 0)
+    if (wing == 0) {
+        if (darkmode == 1) {
+            midiQueue.push({ note: 6, velocity: 0, channel: brightness });//off
+            midiQueue.push({ note: 7, velocity: 1, channel: brightness });//Mid button
+            midiQueue.push({ note: 14, velocity: 0, channel: brightness });//off
+            midiQueue.push({ note: 15, velocity: 1, channel: brightness });//Top button
+            midiQueue.push({ note: 107, velocity: 127, channel: 0 });// dot - Go button
+        }
+        else {
+            midiQueue.push({ note: 6, velocity: 0, channel: brightness });//off
+            midiQueue.push({ note: 7, velocity: 21, channel: brightness });//Mid button
+            midiQueue.push({ note: 14, velocity: 0, channel: brightness });//off
+            midiQueue.push({ note: 15, velocity: 45, channel: brightness });//Top button
+            midiQueue.push({ note: 107, velocity: 127, channel: 0 });// dot - Go button
+        }
+    }
+
+    return midiQueue;
+}
+
+//=================================================================
+
 module.exports = {
     colorNameCodes: colorNameCodes,
     findColorIndex: findColorIndex,
-    matchRuleExpl: matchRuleExpl
+    matchRuleExpl: matchRuleExpl,
+    buildResetQueue: buildResetQueue
 };
 
 //=================================================================
@@ -1873,5 +1908,130 @@ module.exports = {
 //=================================================================
 
 // END OF FILE: profiles\apcMiniMk2.js
+// ==================================================
+
+
+/* FILE: profiles\apcMiniMk2.json */
+// ==================================================
+{
+  "deviceName": "APC mini mk2",
+  "deviceType": "apc_mini_mk2",
+  "notice_by_hf": "Universelle JSON-Konfiguration für die herstellerunabhängige Architektur",
+  
+  "comments_header": {
+    "title": "dot2 Akai APC mini mk2 control code",
+    "version_history": [
+      "v 1.5.1 by ArtGateOne -> https://github.com",
+      "v 1.7.0 Single APC-Version: finds, connects and reconnects MIDI-Device, uses external Function-Files (services)",
+      "v 1.7.1 advanced Protection of missing connection to USB/Midi (updated files: dot2apcminimk2-Single.js, services/midiConnection.js)"
+    ],
+    "search_algorithm_rule": "Colornames: Double Words before Single Words, and 2 Letters at the end !!! (White = 3, Warm = 8, Rose = 4, Citron = 73)"
+  },
+
+  "colorNameCodes": [
+    { "name": "PEff", "code": 76, "comment": "Position Effect (Phaser): 76 = darkGreen" },
+    { "name": "PosEff", "code": 76 },
+    { "name": "PFX", "code": 76 },
+    { "name": "PosFX", "code": 76 },
+    { "name": "Eff", "code": 58, "comment": "Color or Dimmer Effect (Phaser): 58 = darkPink" },
+    { "name": "FX", "code": 58 },
+    
+    { "name": "Center", "code": 74, "comment": "Center Position: 74 = YellowGreen" },
+    { "name": "XPos", "code": 75, "comment": "Extra Position (mostly with Super Priority): 75 = intens Green" },
+    { "name": "Pos", "code": 73, "comment": "Normal Position: 73 = lightGreen" },
+
+    { "name": "Black", "code": 119, "comment": "Blackout: 119 = lightCyanWhite" },
+    { "name": "Warm", "code": 8, "comment": "Warm White: 8 = WarmWhite" },
+    { "name": "White", "code": 3, "comment": "3 = White" },
+    { "name": "Deep Red", "code": 121, "comment": "121 = darkRed" },
+    { "name": "Light Red", "code": 56, "comment": "56 = lightRed" },
+    { "name": "Red", "code": 5 },
+    { "name": "Rot", "code": 5, "comment": "Red (German)" },
+    { "name": "Light Orange", "code": 108 },
+    { "name": "Orange", "code": 9, "comment": "Orange (German same Word)" },
+    { "name": "Light Yellow", "code": 12 },
+    { "name": "Yellow", "code": 13 },
+    { "name": "Gelb", "code": 13, "comment": "Yellow (German)" },
+    { "name": "Fern Green", "code": 17 },
+    { "name": "Sea Green", "code": 25 },
+    { "name": "Light Green", "code": 110 },
+    { "name": "Green", "code": 21 },
+    { "name": "Grün", "code": 21, "comment": "Green (German)" },
+    { "name": "Light Cyan", "code": 32 },
+    { "name": "Cyan", "code": 33 },
+    { "name": "Lavender", "code": 41 },
+    { "name": "Light Bl", "code": 36 },
+    { "name": "Blue", "code": 45 },
+    { "name": "Blau", "code": 45, "comment": "Blue (German)" },
+    { "name": "Light Vi", "code": 48 },
+    { "name": "Violet", "code": 49 },
+    { "name": "Light Mag", "code": 52 },
+    { "name": "Magenta", "code": 53 },
+    { "name": "Pink", "code": 57 },
+    { "name": "CTO", "code": 108, "comment": "CTO Gel = warm" },
+    { "name": "CTB", "code": 93, "comment": "CTB Gel = cold" },
+    { "name": "Gray", "code": 1, "comment": "Gray" },
+    
+    { "comment_section": "Shortcuts - short Names must be last in this Array!!! dot2-labels must be longer than 3 signs to be found here, so it is necessary to have a leading 'Space' before or after the following shortcuts. Example: 'Singer or' = Singer orange Color" },
+
+    { "name": "sw", "code": 0, "comment": "DIN 47002 Shortcuts: Schwarz / Black" },
+    { "name": "br", "code": 126, "comment": "Braun / Brown" },
+    { "name": "ws", "code": 3, "comment": "Weiß / White" },
+    { "name": "rt", "code": 5, "comment": "Rot / Red" },
+    { "name": "or", "code": 9 },
+    { "name": "ge", "code": 13, "comment": "Gelb / Yellow" },
+    { "name": "gn", "code": 21, "comment": "Grün / Green" },
+    { "name": "cy", "code": 33 },
+    { "name": "tk", "code": 33, "comment": "Türkis / Turquoise (same as Cyan)" },
+    { "name": "bl", "code": 45, "comment": "Blau / Blue" },
+    { "name": "vi", "code": 49, "comment": "Violett / violet" },
+    { "name": "gr", "code": 1, "comment": "Grau / Gray" },
+    { "name": "ma", "code": 53 },
+    { "name": "rs", "code": 57, "comment": "Rosa / Pink" },
+    { "name": "wm", "code": 8, "comment": "Warm (not DIN)" },
+
+    { "name": "BK", "code": 0, "comment": "IEC 60757 Shortcuts: Black" },
+    { "name": "BN", "code": 126, "comment": "Brown" },
+    { "name": "WH", "code": 3, "comment": "White" },
+    { "name": "RD", "code": 5, "comment": "Rot / Red" },
+    { "name": "OG", "code": 9, "comment": "Orange" },
+    { "name": "YE", "code": 13, "comment": "Gelb / Yellow" },
+    { "name": "GN", "code": 21, "comment": "Grün / Green" },
+    { "name": "TQ", "code": 33, "comment": "Türkis / Turquoise (sams as Cyan)" },
+    { "name": "BU", "code": 45, "comment": "Blau / Blue" },
+    { "name": "VT", "code": 49, "comment": "Violett / violet" },
+    { "name": "GY", "code": 1, "comment": "Gray" },
+    { "name": "PK", "code": 57, "comment": "Pink" },
+
+    { "name": "Solid", "code": 78, "comment": "Solid WLEDs: 78 = Light GreenBlue" },
+    { "name": "WLED", "code": 42, "comment": "WLED: 42 = dark GreenBlue" },
+    { "name": "Master Speed 1", "code": 58, "comment": "Masterspeed 1 -> Color Effects : redViolet" },
+    { "name": "Master Speed 2", "code": 76, "comment": "Masterspeed 2 -> Position Effects : darkGreen" },
+    { "name": "Alle", "code": 36, "comment": "Select All (don't use 'all' because inside the Word 'Ball' or 'football')" },
+
+    { "name": "W", "code": 42, "comment": "Ultra-Shortcuts: recommend to use as first sign in dot2 label !!! Must be followed by an Space. Example: 'W intensity'. Bad Example: 'W red' -> will be red, because of Search-Algorithm finds long Names first" },
+    { "name": " ", "code": 108, "comment": "Array End: Space label use color of 'upperFaderbutton Off' (ufb2 = 108)" }
+  ],
+
+  "notice_hardware_layout": "Spezifisches Tasten-Layout des APC mini mk2",
+  "layouts": {
+    "notes": {
+      "fader_buttons": { "min": 0, "max": 15, "comment": "Buttons lower 2 lines" },
+      "matrix_buttons": { "min": 16, "max": 63, "comment": "Buttons upper 6 lines" },
+      "page_select": { "min": 112, "max": 116, "offset": 112, "comment": "Scene Buttons 'Clip Stop' bis 'Select'" },
+      "wing_select": { "note": 117, "comment": "Scene Button 'Drum'" },
+      "fader_mode_hi": { "note": 118, "comment": "Scene Button 'Note' - fader buttons select HI" },
+      "fader_mode_lo": { "note": 119, "comment": "Scene Button 'Stop all Clips' - fader buttons select LO" },
+      "shift_button": { "note": 122, "comment": "Shift Button" },
+      "track_buttons": { "min": 100, "max": 107, "offset": 52, "comment": "Track Buttons 100-107" }
+    },
+    "cc": {
+      "faders": { "min": 48, "max": 55, "offset": 48, "comment": "Faders 1-8" },
+      "master_fader": { "cc": 56, "comment": "Grand Master Fader" }
+    }
+  }
+}
+
+// END OF FILE: profiles\apcMiniMk2.json
 // ==================================================
 
