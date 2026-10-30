@@ -1,0 +1,26 @@
+
+Die universelle Multi-Controller-Architektur
+
+[Beliebige Hardware]         ➔  [Treiber / Abstraktion]      ➔  [Universelles Event] ➔ [dot2-Logik]
+
+APC mini mk2 (Port 0)   ───┐    ┌────────────────────────┐
+Launchpad Mini (Port 1) ───┼───►│  Device-Profiles /     │  ───► {                     ┌─────────────────┐
+X-Touch Mini (Port 2)   ───┘    │  Hardware-Abstraktion  │       deviceType: 'apc',    │                 │
+                                └────────────────────────┘       deviceId: 0,          │  midiMapper.js  │
+                                                                 controlType: 'fader', │  (Rechnet in    │
+                                                                 controlId: 3,         │   dot2-Befehle  │
+                                                                 value: 0.75           │   um)           │
+                                                                 }                     └─────────────────┘
+																 
+																 
+																 
+
+Der nächste logische Schritt beim MIDI-Refactoring
+
+Wenn wir auf der MIDI-Ebene bleiben, um die Hardware-Unabhängigkeit weiter voranzutreiben, haben wir ein ähnliches Problem wie bei der Initialisierung in der Hauptdatei (dot2-midi-controller.js) innerhalb der Events midiInput1.on('noteon', ...) und noteoff.
+Dort wird aktuell noch hart auf die APC-Spezifika geprüft:
+• msg.note >= 0 && msg.note <= 15 (untere Faderbuttons)
+• msg.note >= 112 && msg.note <= 116 (Page-Select)
+• msg.note == 117 (Wing-Select)
+Um auch diese Events herstellerunabhängig zu machen, sollten wir als Nächstes eine Übersetzungsfunktion in das Profil (profiles/apcMiniMk2.js) integrieren. Diese nimmt die rohe Note entgegen und gibt dem Hauptskript eine universelle Antwort (z. B. element: "fader_button", id: 2 oder element: "wing_select").
+Sollen wir als Nächstes die Event-Übersetzung der Tasten und Fader in das Profil auslagern, damit auch die Hauptdatei frei von den festen APC-Notenwerten wird?

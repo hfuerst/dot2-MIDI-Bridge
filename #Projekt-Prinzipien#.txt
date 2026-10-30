@@ -1,0 +1,139 @@
+       ┌─────────────────────────────────────────────────────────┐
+       │             3x MIDI-HARDWARE (BELIEBIG)                 │
+       │  [APC mini mk2]       [X-Touch Mini]       [Launchpad]  │
+       └────────────────────────────┬────────────────────────────┘
+                                    │ (Rohe MIDI-Daten)
+                                    ▼
+       ┌─────────────────────────────────────────────────────────┐
+       │                  SERVICES / BACKEND                     │
+       │                                                         │
+       │  1. midiConnection.js (Universeller Multi-Port-Manager) │
+       │     └── Nutzt den Windows-Safe-Mode (.close-Vermeidung) │
+       │                                                         │
+       │  2. jsonProfileParser.js (Der Hardware-Abstrahierer)    │
+       │     ├── Lädt /profiles/apcMiniMk2.json, xtouch.json...  │
+       │     └── Normiert rohe MIDI-Events ◄───► Logische Events │
+       │                                                         │
+       │  3. midiRouter.js (Das logische Herzstück / Core)       │
+       │     ├── Verwaltet 'apcWings' (Default: 2 -> 1 -> 0)     │
+       │     └── Rechnet logische IDs in dot2-Executoren um      │
+       │                                                         │
+       │  4. dot2ApiClient.js (Der Webremote-Netzwerk-Client)   │
+       │     └── Steuert WebSocket, Heartbeats, MD5-Login        │
+       └──────────────┬───────────────────────────┬──────────────┘
+                      │                           │
+  (dot2-JSON-Befehle) │                           │ (Live-Status & Configs)
+                      ▼                           ▼
+       ┌────────────────────────┐  ┌─────────────────────────────┐
+       │    MA dot2 KONSOLE     │  │   WEB-GUI (ZUKÜNFTIG)       │
+       │                        │  │                             │
+       │  Software / Hardware / │  │  5. webServer.js (Express)  │
+       │  onPC                  │  │  6. guiApp.js (Browser-App) │
+       └────────────────────────┘  └─────────────────────────────┘
+
+
+Der Datenfluss im Detail:
+
+1. Input-Weg (Hardware ➔ dot2):
+Die Hardware sendet eine Note ➔ midiConnection.js fängt sie ab und gibt sie an den jsonProfileParser.js weiter ➔ Der Parser schaut in die .json-Datei des Controllers und meldet dem midiRouter.js: „Fader 3 bewegt“ ➔ Der Router prüft das aktive Wing dieses Geräts, berechnet den dot2-Executor-Index und übergibt den Befehl an den dot2ApiClient.js ➔ Die dot2 reagiert.
+2. Output-Weg (dot2 ➔ Hardware / LEDs):
+Die dot2 meldet eine Änderung über den WebSocket ➔ Der dot2ApiClient.js reicht das Paket an den midiRouter.js weiter ➔ Der Router filtert heraus, welcher Executor betroffen ist und welches Gerät dieses Wing gerade anzeigt ➔ Er bittet den jsonProfileParser.js: „Übersetze diesen Zustand für ein APC mini mk2“ ➔ Der Parser liest die LED-Werte aus der .json ab ➔ midiConnection.js schickt die Note an das Gerät ➔ Die LED leuchtet passend.
+
+-------------------------------------------------------------------------------------
+
+kann man das auch noch universeller gestalten? 
+wie kompliziert wäre es eine config-datei je gerätetyp zu haben, wobei neue noch unbekannte geräte hinzukommen könnten? 
+wie müsste so eine struktur aussehen?
+
+Das ist der exakte Wendepunkt von einem starren Skript hin zu einem echten, universellen Open-Source-Framework (wie man es von professioneller Software kennt).
+Ja, das lässt sich absolut universell gestalten! Um komplett neue, dem Programm bisher völlig unbekannte MIDI-Controller einfach per Config-Datei (JSON) hinzuzufügen, müssen wir das Hardware-Profil von einem programmierten JavaScript-Code in eine reine Daten-Struktur (Datendefinition) verwandeln.
+Eine JavaScript-Datei wie apcMiniMk2.js entfällt dann. Stattdessen gibt es pro Gerät eine einfache Textdatei (z. B. apcMiniMk2.json), die jeder Anwender im Editor selbst anlegen oder erweitern kann.
+
+1. Die universelle Struktur einer Geräte-Config (.json)
+
+Jeder Controller auf dem Markt macht im Grunde nur drei Dinge: Er sendet eine Note, er sendet einen CC-Wert (Fader) oder er empfängt eine Note (LED). Ein universelles Geräteprofil muss diese Hardware-Eigenschaften lediglich auf logische dot2-Funktionen mappen.
+So würde die Struktur für deine profiles/apcMiniMk2.json aussehen:
+json
+{
+  "deviceName": "APC mini mk2",
+  "deviceType": "apc_mini_mk2",
+  "capabilities": {
+    "hasRGB": true,
+    "hasFaders": true
+  },
+  "mapping": {
+    "notes": {
+      "0-15":   { "element": "fader_button", "normId": "note" },
+      "16-63":  { "element": "matrix",       "normId": "note" },
+      "100-107":{ "element": "track_button",  "normId": "note - 52" },
+      "112-116":{ "element": "page_select",   "normId": "note - 112" },
+      "117":    { "element": "wing_select" },
+      "118":    { "element": "fader_mode_hi" },
+      "119":    { "element": "fader_mode_lo" },
+      "122":    { "element": "shift" }
+    },
+    "cc": {
+      "48-55":  { "element": "fader",        "normId": "cc - 48" },
+      "56":     { "element": "fader",        "normId": 8 }
+    }
+  },
+  "ledFeedback": {
+    "wingState": {
+      "2": { "note": 117, "velocity": 127, "channel": 0 },
+      "1": { "note": 117, "velocity": 127, "channel": 8 },
+      "0": { "note": 117, "velocity": 0,   "channel": 0 }
+    }
+  }
+}
+Verwende Code mit Vorsicht.
+
+2. Wie würde man ein neues Gerät (z. B. X-Touch Mini) hinzufügen?
+
+Ein Anwender müsste dafür keinen Code mehr verstehen. Er legt einfach eine neue Datei profiles/xTouchMini.json an und trägt die Hardware-Noten des Behringer-Geräts ein:
+json
+{
+  "deviceName": "X-TOUCH MINI",
+  "deviceType": "x_touch_mini",
+  "mapping": {
+    "notes": {
+      "0-7":   { "element": "matrix", "normId": "note" },
+      "8-15":  { "element": "fader_button", "normId": "note - 8" }
+    },
+    "cc": {
+      "9-16":  { "element": "fader", "normId": "cc - 9" }
+    }
+  }
+}
+Verwende Code mit Vorsicht.
+
+3. Wie kompliziert ist die Umsetzung im Code?
+
+Der Umstieg ist überhaupt nicht kompliziert, weil wir die Logik im Hauptskript bereits im vorherigen Schritt perfekt vorbereitet haben!
+Anstatt einer festen Datei importieren wir künftig einfach einen universellen profileParser.js-Service. Dieser liest beim Programmstart alle .json-Dateien aus dem profiles/-Ordner ein. Wenn ein MIDI-Gerät verbunden wird, sucht der Parser die passende JSON-Datei und übernimmt das Mapping vollautomatisch.
+Der universelle Code im Hintergrund wandelt die JSON-Bereiche (wie "48-55") mit einer einfachen mathematischen Zeile um:
+javascript
+// Ein kleiner, universeller Parser-Auszug im Hintergrund:
+function getControlInfoFromJSON(jsonProfile, eventType, msg) {
+    const val = (eventType === 'cc') ? msg.controller : msg.note;
+    const map = (eventType === 'cc') ? jsonProfile.mapping.cc : jsonProfile.mapping.notes;
+
+    for (let key in map) {
+        // Prüft ob die Note/CC im Bereich liegt (z.B. "48-55" oder exakt "56")
+        if (isInRange(val, key)) {
+            let target = map[key];
+            // Berechnet die normierte ID (z.B. "cc - 48" wird zu 0-7)
+            let normId = evalExpression(target.normId, val); 
+            return { element: target.element, id: normId, value: msg.value };
+        }
+    }
+    return null;
+}
+Verwende Code mit Vorsicht.
+
+Die Vorteile dieser Struktur:
+
+• Grenzenlose Freiheit: Jedes neue MIDI-Mischpult oder Pad-Controller auf dem Markt kann innerhalb von 5 Minuten durch eine einfache JSON-Konfigurationsdatei integriert werden.
+• Keine Code-Änderungen mehr: Die Hauptdatei dot2-midi-controller.js wird dadurch dauerhaft "eingefroren". Sie bleibt für immer sauber und unberührt, da jegliche Hardware-Spezifikation nur noch als Textdaten eingelesen wird.
+• Perfekt für die Web-GUI: Diese JSON-Struktur ist genau das, was eine spätere Web-Oberfläche braucht. Die GUI kann diese JSON-Dateien direkt einlesen, dem Anwender die Regler grafisch auf dem Bildschirm anzeigen und Änderungen per Mausklick wieder in die JSON-Datei zurückspeichern.
+Das ist der absolute Königsweg für ein offenes System. Da wir aktuell noch mitten im schrittweisen Refactoring deiner Single-Version sind: Sollen wir diesen universellen JSON-Profil-Parser als nächstes Etappenziel direkt anstelle des festen JavaScript-Profils umsetzen, bevor wir zu den dot2-Websockets übergehen?
+

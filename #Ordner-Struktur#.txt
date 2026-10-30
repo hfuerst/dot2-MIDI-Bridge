@@ -1,0 +1,27 @@
+mein-dot2-midi-projekt/
+│
+├── api/
+│   ├── webServer.js            // Startet einen Express/Fastify Server (stellt die GUI bereit)
+│   └── webSocketHub.js         // Verteilt Live-Statusdaten (MIDI-Aktivität) an die Browser-GUI
+│
+├── services/
+│   ├── midiConnection.js       // Der universelle Multi-Controller-Manager (Windows-Safe)
+│   ├── midiMapper.js           // Zuweisung von Wings, Executors und Rotation
+│   ├── dot2ApiClient.js        // WebSocket-Verbindung zur dot2 (Login, Befehle)
+│   └── ledFeedback.js          // Verarbeitet dot2-Rückmeldungen für die Controller-LEDs
+│
+├── profiles/
+│   ├── apcMiniMk2.js           // Hardware-Profil: APC mini mk2
+│   └── launchpad.js            // Hardware-Profil: Launchpad
+│
+├── public/                     // <--- HIER liegt die WEB-GUI (Frontend)
+│   ├── index.html              // Hauptseite der Benutzeroberfläche
+│   ├── css/
+│   │   └── style.css           // Optisches Design der GUI
+│   └── js/
+│       └── guiApp.js           // Steuert die Live-Anzeige im Browser via WebSockets
+│
+├── config/
+│   └── defaultSettings.json    // Speichert das Standard-Setup (welche Hardware an welchem Wing)
+│
+└── dot2-midi-controller.js     // Hauptdatei (der "Dirigent")
